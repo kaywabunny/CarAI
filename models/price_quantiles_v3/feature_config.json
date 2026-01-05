@@ -1,0 +1,43 @@
+{
+  "features": [
+    "brand",
+    "model",
+    "submodel",
+    "gear",
+    "color",
+    "year",
+    "age",
+    "mileage",
+    "mileage_per_year",
+    "log_mileage",
+    "sqrt_mileage",
+    "age_x_mileage",
+    "mileage_per_age"
+  ],
+  "categorical": [
+    "brand",
+    "model",
+    "submodel",
+    "gear",
+    "color"
+  ],
+  "numeric": [
+    "year",
+    "age",
+    "mileage",
+    "mileage_per_year",
+    "log_mileage",
+    "sqrt_mileage",
+    "age_x_mileage",
+    "mileage_per_age"
+  ],
+  "target": "log(price)",
+  "rounding": {
+    "<1M": "1000 THB",
+    "\u22651M": "5000 THB"
+  },
+  "blend_weight": 0.3,
+  "coverage_target": 0.68,
+  "coverage_scale_used": 1.5997070312500001,
+  "version": "v3.2"
+}

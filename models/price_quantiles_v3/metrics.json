@@ -1,0 +1,14 @@
+{
+  "split_type": "random",
+  "val_rows": 1365,
+  "WAPE@q50_before": 0.30661569758689583,
+  "MAPE@q50_before": 0.18183164723777973,
+  "coverage_before": 0.41684981684981687,
+  "WAPE@q50_after": 0.30661569758689583,
+  "MAPE@q50_after": 0.18183164723777973,
+  "coverage_after": 0.5794871794871795,
+  "blend_weight": 0.3,
+  "coverage_target": 0.68,
+  "coverage_scale_used": 1.5997070312500001,
+  "RMSE_log@q50": 0.4500115933057532
+}

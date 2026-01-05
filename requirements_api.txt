@@ -1,0 +1,9 @@
+fastapi[standard]
+uvicorn[standard]
+numpy
+pandas
+SQLAlchemy
+PyMySQL
+cryptography
+scikit-learn
+python-dotenv
