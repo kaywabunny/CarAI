@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 import argparse
+import io
+from fastapi.responses import StreamingResponse
 import json
 import urllib.request
 import urllib.error
 import matplotlib.pyplot as plt
+import matplotlib
 
+matplotlib.use("Agg")
 
 def to_price_bands(d):
     return {
@@ -55,9 +59,10 @@ def plot_price_bands(bands, title=None, save_path=None):
                 ha="right", va="bottom", fontsize=9)
 
     fig.tight_layout()
-    if save_path:
-        fig.savefig(save_path, bbox_inches="tight")
-    return fig
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
 
 
 def main():
@@ -94,9 +99,7 @@ def main():
             "confidence": None,
         }
 
-    fig = plot_price_bands(bands, title=args.title, save_path=args.out)
-    if not args.out:
-        plt.show()
+    return plot_price_bands(bands, title=args.title, save_path=args.out)
 
 
 if __name__ == "__main__":
