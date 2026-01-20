@@ -148,6 +148,11 @@ def _add_features(req: dict) -> pd.DataFrame:
 
     mileage_value = mileage if mileage else 0.0
 
+        # HARD CAP: keep mileage within training-like range to avoid extrapolation
+    MAX_MILEAGE_KM = 450_000
+    mileage_value = float(np.clip(mileage_value, 0.0, MAX_MILEAGE_KM))
+
+
     row = {
         "brand": brand,
         "model": model,
@@ -375,6 +380,13 @@ def predict_price(req: dict) -> dict:
     q50 = np.exp(log_q50)
     q80 = np.exp(log_q80)
 
+    print("=== RAW MODEL OUTPUT (before blend & caps) ===")
+    print(f"mileage_km = {req.get('mileage_km_num')}")
+    print(f"q20_raw = {q20:,.0f}")
+    print(f"q50_raw = {q50:,.0f}")
+    print(f"q80_raw = {q80:,.0f}")
+    print("=============================================")
+
     # optional blend toward group median for stability (light, 30% default)
     gmed = _lookup_group_median(brand, model, year)
     if gmed is not None and np.isfinite(gmed) and gmed > 0:
@@ -396,27 +408,51 @@ def predict_price(req: dict) -> dict:
         q20 = max(q20, q50 * LOW_RATIO)
         q80 = min(q80, q50 * HIGH_RATIO)
 
-    # Calculate price ranges relative to market median (q50)
-    green_low = q50 * 0.88
-    green_median = q50 * 0.90
-    green_high = q50 * 0.92
+    # --- BANDS centered on model quantiles ---
+    # Anchors (these are the "true" model-driven points)
+    green_low = float(q20)   # q20 anchor
+    yellow = float(q50)      # q50 anchor
+    red_high = float(q80)    # q80 anchor
 
-    yellow = q50
+    # Enforce ordering (just in case)
+    if not (green_low <= yellow <= red_high):
+        # fallback to sorted to avoid weird outputs
+        green_low, yellow, red_high = sorted([green_low, yellow, red_high])
 
-    red_low = q50 * 1.10
-    red_median = q50 * 1.14
-    red_high = q50 * 1.18
+    # Fill inside the bands by interpolating between anchors
+    # Green band lives between q20 -> q50
+    green_median = green_low + 0.50 * (yellow - green_low)
+    green_high   = green_low + 0.85 * (yellow - green_low)
+
+    # Red band lives between q50 -> q80
+    red_low    = yellow + 0.15 * (red_high - yellow)
+    red_median = yellow + 0.50 * (red_high - yellow)
+
+    # Optional: if q80 is extremely far from q50, cap it to keep UX sane
+    # (uncomment if you want a hard limit)
+    # MAX_RED_RATIO = 1.60
+    # if red_high > yellow * MAX_RED_RATIO:
+    #     red_high = yellow * MAX_RED_RATIO
+    #     red_low = yellow + 0.15 * (red_high - yellow)
+    #     red_median = yellow + 0.50 * (red_high - yellow)
 
     # Band-width clamp (prevents extreme spreads)
+# Band-width clamp (prevents extreme spreads)
     bandwidth_clamped = False
     if (red_high > yellow * 1.35) or (green_low < yellow * 0.65):
-        bandwidth_clamped = True
-        green_low = yellow * 0.88
-        green_median = yellow * 0.92
-        green_high = yellow * 0.96
-        red_low = yellow * 1.04
-        red_median = yellow * 1.14
-        red_high = yellow * 1.18
+       bandwidth_clamped = True
+
+    # cap extreme upside based on GREEN (condition floor), not YELLOW (market center)
+    MAX_RED_MULT = 1.85  # tune as needed
+    cap = green_low * MAX_RED_MULT
+
+    if red_high > cap:
+        red_high = cap
+
+        # recompute red band after cap
+        red_low = yellow + 0.15 * (red_high - yellow)
+        red_median = yellow + 0.50 * (red_high - yellow)
+
 
     # Transparency
     sample_size = _lookup_sample_size(brand, model, year)
